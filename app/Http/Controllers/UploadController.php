@@ -3,18 +3,17 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Part; 
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Goodby\CSV\Import\Standard\LexerConfig;
 use Goodby\CSV\Import\Standard\Lexer;
 use Goodby\CSV\Import\Standard\Interpreter;
 use SplFileObject;
-use Jenssegers\Mongodb\Eloquent\Model as Eloquent;
-
-
 
 class UploadController extends Controller
 {
+
+
+    
     /**
      * Display the upload form.
      *
@@ -33,6 +32,8 @@ class UploadController extends Controller
      */
     public function upload(Request $request)
     {
+
+        
         if ($request->hasFile('file')) {
             $request->validate([
                 'file' => 'required|mimes:xlsx,csv,txt',
@@ -51,25 +52,12 @@ class UploadController extends Controller
                 return back()->withErrors(['file' => 'Неподдерживаемый формат файла.']);
             }
 
-            // MongoDB
-            foreach ($records as $record) {
-                Part::create([
-                    'brand1' => $record['brand1'],
-                    'part_number1' => $record['part_number1'],
-                    'brand2' => $record['brand2'],
-                    'part_number2' => $record['part_number2'],
-                    'name' => $record['name'] ?? null,
-                    'timestamp' => now(), // Время 
-                    'counter' => 0, // Счетчик для проверки повторов
-                ]);
-            }
-
-            // Ограничение 50 строк
+            // Ограничение вывода до 50 строк
             $limitedRecords = array_slice($records, 0, 50);
 
             return view('upload_form', ['records' => $limitedRecords]);
         } else {
-            return back()->withErrors(['file' => 'Файл не был загружен.']);
+            return back()->withErrors(['file' => 'File was not uploaded.']);
         }
     }
 
@@ -111,13 +99,13 @@ class UploadController extends Controller
         $interpreter = new Interpreter();
 
         $records = [];
-        $count = 0; // счетчик строк сколько
+        $count = 0; // счетчик строк
 
         $interpreter->addObserver(function (array $row) use (&$records, &$count) {
             $records[] = $row;
             $count++;
 
-            //  после 50 строк
+            // Остановить чтение файла после 50 строк
             if ($count >= 50) {
                 return false;
             }

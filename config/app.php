@@ -5,18 +5,6 @@ use Illuminate\Support\ServiceProvider;
 
 return [
 
-
-
-    'providers' => [
-        // Другие провайдеры...
-        Jenssegers\Mongodb\MongodbServiceProvider::class,
-    ],
-    
-    'aliases' => [
-        // Другие фасады...
-        'MongoDB' => Jenssegers\Mongodb\Facades\MongoDB::class,
-    ],
-    
     /*
     |--------------------------------------------------------------------------
     | Application Name
