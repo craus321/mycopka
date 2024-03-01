@@ -11,9 +11,6 @@ use SplFileObject;
 
 class UploadController extends Controller
 {
-
-
-    
     /**
      * Display the upload form.
      *
@@ -32,8 +29,6 @@ class UploadController extends Controller
      */
     public function upload(Request $request)
     {
-
-        
         if ($request->hasFile('file')) {
             $request->validate([
                 'file' => 'required|mimes:xlsx,csv,txt',
@@ -57,7 +52,7 @@ class UploadController extends Controller
 
             return view('upload_form', ['records' => $limitedRecords]);
         } else {
-            return back()->withErrors(['file' => 'File was not uploaded.']);
+            return back()->withErrors(['file' => 'Файл не был загружен.']);
         }
     }
 
@@ -72,7 +67,7 @@ class UploadController extends Controller
         $file = new SplFileObject($filePath);
         $firstLine = $file->fgets();
 
-        $delimiters = [',', ';', '|', "\t"]; // разделитель
+        $delimiters = [',', ';', '|', "\t"];
 
         foreach ($delimiters as $delimiter) {
             if (strpos($firstLine, $delimiter) !== false) {
@@ -99,7 +94,7 @@ class UploadController extends Controller
         $interpreter = new Interpreter();
 
         $records = [];
-        $count = 0; // счетчик строк
+        $count = 0;
 
         $interpreter->addObserver(function (array $row) use (&$records, &$count) {
             $records[] = $row;
@@ -117,7 +112,7 @@ class UploadController extends Controller
     }
 
     /**
-     * Parse an Excel file.
+     * Parse an Excel file (XLSX).
      *
      * @param string $filePath
      * @return array
@@ -125,11 +120,11 @@ class UploadController extends Controller
     private function parseExcel(string $filePath): array
     {
         $records = [];
-        $count = 0; // счетчик строк
+        $count = 0;
         
         $spreadsheet = IOFactory::load($filePath);
         $sheet = $spreadsheet->getActiveSheet();
-    
+
         foreach ($sheet->getRowIterator() as $row) {
             $rowData = [];
             foreach ($row->getCellIterator() as $cell) {
@@ -137,13 +132,13 @@ class UploadController extends Controller
             }
             $records[] = $rowData;
             $count++;
-    
+
             // Остановить чтение файла после 50 строк
             if ($count >= 50) {
                 break;
             }
         }
-    
+
         return $records;
     }
 }
