@@ -1,7 +1,7 @@
 <?php
 
 
-
+use App\Http\Controllers\UploadController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ExcelController;
 
@@ -9,17 +9,11 @@ use App\Http\Controllers\ExcelController;
 
 
 
-Route::get('/', 'App\Http\Controllers\UploadController@showUploadForm')->name('upload.form');
-Route::post('/', 'App\Http\Controllers\UploadController@upload')->name('upload.submit');
-Route::post('/upload/save', 'UploadController@saveToDatabase')->name('upload.saveToDatabase');
+Route::get('/', [UploadController::class, 'index'])->name('upload.form');
+Route::post('/', [UploadController::class, 'upload'])->name('upload.submit');
+Route::post('/upload/save', [UploadController::class, 'saveToDatabase'])->name('upload.saveToDatabase');
 
 
 use App\Http\Controllers\MongoDBConnectionController;
 
 Route::get('/check-mongodb-connection', [MongoDBConnectionController::class, 'checkConnection']);
-
-
-
-Route::get('/1', function () {
-    return view('info');
-});

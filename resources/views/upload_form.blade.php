@@ -33,36 +33,34 @@
             </form>
         </div>
         @if(isset($records))
+            <form action="{{ route('upload.saveToDatabase') }}" method="post">
+
             <div>
                 <h2>Данные из файла CSV</h2>
                 <table>
-                    @if(isset($headers))
-                        <thead>
-                            <tr>
-                                @foreach($headers as $key)
-                                    <th>{{ $key }}</th>
-                                @endforeach
-                            </tr>
-                        </thead>
-                    @endif
                     <tbody>
                         @php
                             $recordsToShow = is_array($records) ? array_slice($records, 0, 50) : $records->take(50);
                         @endphp
+                        @php($i = 0)
                         @foreach($recordsToShow as $record)
                             <tr>
-                                @foreach($record as $value)
-                                    <td>{{ $value }}</td>
+                                @foreach($record as $key => $value)
+                                    @if($i == 0)
+                                        <td>{{ $value }}<input type="text" name="fieldName[{{$key}}][name]" placeholder="Новое название"><input name="fieldName[{{$key}}][needSave]" type="checkbox">Сохранять в бд?</td>
+                                    @else
+                                        <td>{{ $value }}</td>
+                                    @endif
                                 @endforeach
                             </tr>
+                            @php($i++)
                         @endforeach
                     </tbody>
                 </table>
-                <form action="{{ route('upload.saveToDatabase') }}" method="post">
-                    @csrf
-                    <button type="submit">Загрузить в базу</button>
-                </form>
+                @csrf
+                <button type="submit">Загрузить в базу</button>
             </div>
+            </form>
         @endif
     </div>
 </div>
@@ -79,15 +77,15 @@
     width: 100%;
     border-collapse: collapse;
     margin-top: 20px;
-    border-left: 2px solid #ccc; 
-    border-top: 2px solid #ccc; 
+    border-left: 2px solid #ccc;
+    border-top: 2px solid #ccc;
 }
 
 th, td {
     padding: 10px;
     border-bottom: 1px solid #ccc;
     text-align: left;
-    border-right: 1px solid #ccc; 
+    border-right: 1px solid #ccc;
 }
 
     body {

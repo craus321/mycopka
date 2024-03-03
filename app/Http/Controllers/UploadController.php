@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Goodby\CSV\Import\Standard\LexerConfig;
 use Goodby\CSV\Import\Standard\Lexer;
@@ -16,7 +17,7 @@ class UploadController extends Controller
      *
      * @return \Illuminate\View\View
      */
-    public function showUploadForm(): \Illuminate\View\View
+    public function index(): \Illuminate\View\View
     {
         return view('upload_form');
     }
@@ -29,6 +30,8 @@ class UploadController extends Controller
      */
     public function upload(Request $request)
     {
+        set_time_limit(0);
+
         if ($request->hasFile('file')) {
             $request->validate([
                 'file' => 'required|mimes:xlsx,csv,txt',
@@ -49,7 +52,7 @@ class UploadController extends Controller
 
             // Ограничение вывода до 50 строк
             $limitedRecords = array_slice($records, 0, 50);
-
+            Storage::disk('public')->put($filePath, '');
             return view('upload_form', ['records' => $limitedRecords]);
         } else {
             return back()->withErrors(['file' => 'Файл не был загружен.']);
@@ -121,24 +124,14 @@ class UploadController extends Controller
     {
         $records = [];
         $count = 0;
-        
+
         $spreadsheet = IOFactory::load($filePath);
         $sheet = $spreadsheet->getActiveSheet();
+        return $sheet->toArray();
+    }
 
-        foreach ($sheet->getRowIterator() as $row) {
-            $rowData = [];
-            foreach ($row->getCellIterator() as $cell) {
-                $rowData[] = $cell->getValue();
-            }
-            $records[] = $rowData;
-            $count++;
-
-            // Остановить чтение файла после 50 строк
-            if ($count >= 50) {
-                break;
-            }
-        }
-
-        return $records;
+    public function saveToDatabase(Request $request)
+    {
+        dd($request);
     }
 }
