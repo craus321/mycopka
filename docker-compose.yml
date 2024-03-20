@@ -9,7 +9,7 @@ services:
     volumes:
       - .:/var/www/html
     depends_on:
-      - mysql
+      - mongodb
     environment:
       DB_CONNECTION: mongodb
       DB_HOST: data-ood.tradesoft.ru
@@ -17,6 +17,12 @@ services:
       DB_DATABASE: your_database_name
       DB_USERNAME: oodadmin
       DB_PASSWORD: IuV7pbVwna2Wt2k
-     
 
- 
+  mongodb:
+    image: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: your_database_name
+      MONGO_INITDB_ROOT_USERNAME: oodadmin
+      MONGO_INITDB_ROOT_PASSWORD: IuV7pbVwna2Wt2k
