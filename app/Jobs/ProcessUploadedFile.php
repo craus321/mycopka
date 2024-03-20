@@ -114,10 +114,10 @@ class ProcessUploadedFile implements ShouldQueue
     private function parseExcel(string $filePath): array
     {
         $records = [];
-        
+
         $spreadsheet = IOFactory::load($filePath);
         $sheet = $spreadsheet->getActiveSheet();
-        
+
         foreach ($sheet->getRowIterator() as $row) {
             $rowData = [];
             foreach ($row->getCellIterator() as $cell) {

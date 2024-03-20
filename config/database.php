@@ -15,7 +15,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'mysql'),
+    'default' => env('DB_CONNECTION', 'mongodb'),
 
     /*
     |--------------------------------------------------------------------------
@@ -101,10 +101,8 @@ return [
             'database' => env('MONGODB_DATABASE', 'cross_table'),
             'username' => env('MONGODB_USERNAME', 'oodadmin'),
             'password' => env('MONGODB_PASSWORD', 'IuV7pbVwna2Wt2k'),
-            'options'  => [
-                // Удалите строку ниже
-                // 'database' => 'cross_table'
-            ]
+            //'dsn' => env('MONGODB_URI'),
+
         ]
 
 

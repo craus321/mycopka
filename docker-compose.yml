@@ -1,0 +1,22 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - mysql
+    environment:
+      DB_CONNECTION: mongodb
+      DB_HOST: data-ood.tradesoft.ru
+      DB_PORT: 27017
+      DB_DATABASE: your_database_name
+      DB_USERNAME: oodadmin
+      DB_PASSWORD: IuV7pbVwna2Wt2k
+     
+
+ 

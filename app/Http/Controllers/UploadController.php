@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CustomerMongoDB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -22,11 +23,12 @@ class UploadController extends Controller
         return view('upload_form');
     }
 
+
     /**
      * Process the uploaded file (CSV or XLSX).
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse|\Illuminate\View\View
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\Routing\ResponseFactory|\Illuminate\Foundation\Application|\Illuminate\Http\Response
      */
     public function upload(Request $request)
     {
@@ -34,29 +36,136 @@ class UploadController extends Controller
 
         if ($request->hasFile('file')) {
             $request->validate([
-                'file' => 'required|mimes:xlsx,csv,txt',
+                'file' => 'required|mimes:csv,txt',
             ]);
 
             $file = $request->file('file');
-            $filePath = $file->getRealPath();
-
             $extension = $file->getClientOriginalExtension();
-            if ($extension === 'csv' || $extension === 'txt') {
-                $delimiter = $this->detectDelimiter($filePath);
-                $records = $this->parseCsv($filePath, $delimiter);
-            } elseif ($extension === 'xlsx') {
-                $records = $this->parseExcel($filePath);
+
+            if ($extension === 'xlsx') {
+
+                $csvFilePath = tempnam(sys_get_temp_dir(), 'csv');
+                $writer = IOFactory::createWriter(IOFactory::load($file), 'Csv');
+                $writer->setDelimiter(',');
+                $writer->setEnclosure('"');
+                $writer->save($csvFilePath);
+            } elseif ($extension === 'csv' || $extension === 'txt') {
+                $csvFilePath = $file->getRealPath();
             } else {
-                return back()->withErrors(['file' => 'Неподдерживаемый формат файла.']);
+                return response('Неподдерживаемый формат файла.', 400);
+
+            }
+
+            $delimiter = $this->detectDelimiter($csvFilePath);
+            $records = $this->parseCsv($csvFilePath, $delimiter);
+            $headers = $records[0];
+
+            // Проверяем наличие обязательных столбцов
+            $mainAttributes = $this->getMainAttributesForCsv();
+            $diffHeaders = array_diff($mainAttributes, $headers);
+
+            // Если отсутствуют обязательные столбцы, пропускаем валидацию
+            if (!empty($diffHeaders)) {
+                $canUpload = true;
+                foreach (['brand_cross', 'article_cross', 'name_cross'] as $requiredColumn) {
+                    if (!in_array($requiredColumn, $headers)) {
+                        $canUpload = false;
+                        break;
+                    }
+                }
+
+                if (!$canUpload) {
+                    return response('Отсутствуют обязательные столбцы (' . implode(',', array_map(function($item) {
+                            return '<strong style="color:red">' . $item . '</strong>';
+                        }, $diffHeaders)) .  ')', 400);
+                }
             }
 
             // Ограничение вывода до 50 строк
             $limitedRecords = array_slice($records, 0, 50);
-            Storage::disk('public')->put($filePath, '');
-            return view('upload_form', ['records' => $limitedRecords]);
+            return view('data_show', ['records' => $limitedRecords]);
         } else {
-            return back()->withErrors(['file' => 'Файл не был загружен.']);
+            return response('Файл не был загружен.', 400);
+
         }
+    }
+
+    private function getMainAttributesForCsv(): array
+    {
+        return [
+            'brand',
+            'article',
+            'brand_cross',
+            'article_cross',
+            'name_cross',
+            'name'
+        ];
+    }
+
+    public function saveToDatabase(Request $request)
+{
+    set_time_limit(0);
+
+    // Получаем данные из запроса
+    $fields = $request->input('fieldName');
+    // Загружаем CSV файл
+    $file = $request->file('file');
+    // Проверяем, был ли загружен файл
+    if ($file->isValid()) {
+        // Читаем содержимое CSV файла
+        $csvData = file_get_contents($file->path());
+        // Разбиваем данные на строки
+        $delimiter = $this->detectDelimiter($file->path());
+
+        $rows = explode(PHP_EOL, $csvData);
+        // Получаем названия столбцов из первой строки CSV файла
+        $headers = str_getcsv(array_shift($rows), $delimiter);
+        // Обрабатываем каждую строку CSV файла
+        foreach ($rows as $row) {
+            $newObj = [];
+            $dataRow = str_getcsv($row, $delimiter);
+            foreach ($dataRow as $key => $data) {
+                $newObj[$headers[$key]] = $data;
+            }
+            $newObj['counter'] = 1;
+
+            // Условие для поиска дубликатов
+            $conditions = [
+                'brand' => $newObj['brand'],
+                'article' => $newObj['article'],
+                'brand_cross' => $newObj['brand_cross'],
+                'article_cross' => $newObj['article_cross'],
+                'name_cross' => $newObj['name_cross'],
+                'name' => $newObj['name']
+            ];
+
+            // Поиск дубликата
+            $existingRecord = CustomerMongoDB::where($conditions)->first();
+
+            // Если найден дубликат, увеличиваем счетчик
+            if ($existingRecord) {
+                $existingRecord->increment('counter');
+            } else {
+                // Создание новой записи
+                CustomerMongoDB::create($newObj);
+            }
+        }
+
+
+        // Возвращаем ответ об успешном сохранении
+        return response()->json(['message' => 'Данные успешно сохранены в базу данных'], 200);
+    } else {
+        // Обработка ошибок при загрузке файла
+        return response()->json(['error' => 'Ошибка при загрузке файла'], 400);
+    }
+
+}
+
+    public static function quickRandom($length = 16)
+    {
+        $pool = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+        return substr(str_shuffle(str_repeat($pool, 5)), 0, $length);
     }
 
     /**
@@ -69,12 +178,17 @@ class UploadController extends Controller
     {
         $file = new SplFileObject($filePath);
         $firstLine = $file->fgets();
-
         $delimiters = [',', ';', '|', "\t"];
 
         foreach ($delimiters as $delimiter) {
-            if (strpos($firstLine, $delimiter) !== false) {
-                return $delimiter;
+
+            $encoding = mb_detect_encoding($firstLine, 'UTF-8, Windows-1251');
+            $firstLineUtf8 = mb_convert_encoding($firstLine, 'UTF-8', $encoding);
+
+            foreach ($delimiters as $delimiter) {
+                if (strpos($firstLineUtf8, $delimiter) !== false) {
+                    return $delimiter;
+                }
             }
         }
 
@@ -100,7 +214,12 @@ class UploadController extends Controller
         $count = 0;
 
         $interpreter->addObserver(function (array $row) use (&$records, &$count) {
-            $records[] = $row;
+
+            $convertedRow = array_map(function ($value) {
+                return mb_convert_encoding($value, 'UTF-8', mb_detect_encoding($value));
+            }, $row);
+
+            $records[] = $convertedRow;
             $count++;
 
             // Остановить чтение файла после 50 строк
@@ -112,26 +231,5 @@ class UploadController extends Controller
         $lexer->parse($filePath, $interpreter);
 
         return $records;
-    }
-
-    /**
-     * Parse an Excel file (XLSX).
-     *
-     * @param string $filePath
-     * @return array
-     */
-    private function parseExcel(string $filePath): array
-    {
-        $records = [];
-        $count = 0;
-
-        $spreadsheet = IOFactory::load($filePath);
-        $sheet = $spreadsheet->getActiveSheet();
-        return $sheet->toArray();
-    }
-
-    public function saveToDatabase(Request $request)
-    {
-        dd($request);
     }
 }
